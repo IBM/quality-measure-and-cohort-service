@@ -81,7 +81,29 @@ public class MeasureEvaluation {
                 MeasureReport.MeasureReportType.INDIVIDUAL, isSingle, includeEvaluatedResources);
     }
 
-    @SuppressWarnings("unchecked")
+    public MeasureReport evaluatePatientListMeasure(Measure measure, Context context, List<String> patientIds, boolean includeEvaluatedResources) {
+	    logger.info("Generating patient-list report");
+
+	    List<Patient> patients = toPatients(patientIds);
+	    boolean isSingle = false;
+	    return evaluate(measure, context, patients, MeasureReport.MeasureReportType.SUBJECTLIST, isSingle, includeEvaluatedResources);
+    }
+
+	private List<Patient> toPatients(List<String> patientIds) {
+		List<Patient> patients = new ArrayList<>();
+
+		for (String patientId : patientIds) {
+			Iterable<Object> patientRetrieve = provider.retrieve(PATIENT, "id", patientId, PATIENT, null, null, null, null, null, null, null, null);
+			if (patientRetrieve.iterator().hasNext()) {
+				Patient patient = (Patient) patientRetrieve.iterator().next();
+				patients.add(patient);
+			}
+		}
+
+		return patients;
+	}
+
+	@SuppressWarnings("unchecked")
     private Iterable<Resource> evaluateCriteria(Context context, Patient patient,
             Measure.MeasureGroupPopulationComponent pop) {
         if (pop == null || !pop.hasCriteria()) {

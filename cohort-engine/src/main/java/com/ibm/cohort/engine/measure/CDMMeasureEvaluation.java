@@ -116,48 +116,60 @@ public class CDMMeasureEvaluation {
 	 * @param measure   CDM Patient Quality Measure
 	 * @param context   CQL Engine Execution Context pre-configured for use in
 	 *                  measure evaluation
-	 * @param patientId Patient ID of the patient to evaluate
+	 * @param patientIds Patient ID(s) of the patient to evaluate (first element when generating INDIVIDUAL type report
 	 * @param evidenceOptions MeasureEvidenceOptions to indicate whether or not to return evaluated resources and define level results
-     * @param parameterMap Map of parameter names to Parameter objects                       	   
+     * @param parameterMap Map of parameter names to Parameter objects
+	 * @param type  Type of report to be generated
 	 * @return MeasureReport with population components filled out.
 	 */
-	public MeasureReport evaluatePatientMeasure(Measure measure, Context context, String patientId, MeasureEvidenceOptions evidenceOptions, Map<String, Parameter> parameterMap) {
+	public MeasureReport evaluatePatientMeasure(Measure measure, Context context, List<String> patientIds, MeasureEvidenceOptions evidenceOptions, Map<String, Parameter> parameterMap, MeasureReport.MeasureReportType type) {
 		context.setExpressionCaching(true);
-		
-		boolean includeEvaluatedResources = (evidenceOptions != null ) ? evidenceOptions.isIncludeEvaluatedResources() : false;
-		MeasureReport report = evaluation.evaluatePatientMeasure(measure, context, patientId, includeEvaluatedResources);
+
+		boolean includeEvaluatedResources = (evidenceOptions != null) ? evidenceOptions.isIncludeEvaluatedResources() : false;
+
+		MeasureReport report;
+		switch (type) {
+			case INDIVIDUAL:
+				report = evaluation.evaluatePatientMeasure(measure, context, patientIds.get(0), includeEvaluatedResources);
+				break;
+			case SUBJECTLIST:
+				report = evaluation.evaluatePatientListMeasure(measure, context, patientIds, includeEvaluatedResources);
+				break;
+			default:
+				throw new IllegalStateException("Unsupported measure report type requested: " + type);
+		}
 
 		setReportMeasureToMeasureId(report, measure);
 
 		MeasureScoring scoring = MeasureScoring.fromCode(measure.getScoring().getCodingFirstRep().getCode());
 		switch (scoring) {
-		case PROPORTION:
-		case RATIO:
-			// implement custom logic for CDM care-gaps
-			Iterator<Measure.MeasureGroupComponent> it = measure.getGroup().iterator();
-			for (int i = 0; it.hasNext(); i++) {
-				Measure.MeasureGroupComponent group = it.next();
-				MeasureReport.MeasureReportGroupComponent reportGroup = report.getGroup().get(i);
-				boolean evaluateCareGaps = isEligibleForCareGapEvaluation(reportGroup);
+			case PROPORTION:
+			case RATIO:
+				// implement custom logic for CDM care-gaps
+				Iterator<Measure.MeasureGroupComponent> it = measure.getGroup().iterator();
+				for (int i = 0; it.hasNext(); i++) {
+					Measure.MeasureGroupComponent group = it.next();
+					MeasureReport.MeasureReportGroupComponent reportGroup = report.getGroup().get(i);
+					boolean evaluateCareGaps = isEligibleForCareGapEvaluation(reportGroup);
 
-				for (Measure.MeasureGroupPopulationComponent pop : group.getPopulation()) {
-					if (pop.getCode().hasCoding(CDMConstants.CDM_CODE_SYSTEM_MEASURE_POPULATION_TYPE, CDMConstants.CARE_GAP)) {
-						Boolean result = Boolean.FALSE;
-						if (evaluateCareGaps) {
-							result = evaluateCriteria(context, pop.getCriteria().getExpression());
+					for (Measure.MeasureGroupPopulationComponent pop : group.getPopulation()) {
+						if (pop.getCode().hasCoding(CDMConstants.CDM_CODE_SYSTEM_MEASURE_POPULATION_TYPE, CDMConstants.CARE_GAP)) {
+							Boolean result = Boolean.FALSE;
+							if (evaluateCareGaps) {
+								result = evaluateCriteria(context, pop.getCriteria().getExpression());
+							}
+
+							MeasureReport.MeasureReportGroupPopulationComponent output = new MeasureReport.MeasureReportGroupPopulationComponent();
+							output.setId(pop.getId()); // need this to differentiate between multiple instances of care-gap
+							output.setCode(pop.getCode());
+							output.setCount(result ? 1 : 0);
+							reportGroup.addPopulation(output);
 						}
-
-						MeasureReport.MeasureReportGroupPopulationComponent output = new MeasureReport.MeasureReportGroupPopulationComponent();
-						output.setId(pop.getId()); // need this to differentiate between multiple instances of care-gap
-						output.setCode(pop.getCode());
-						output.setCount(result ? 1 : 0);
-						reportGroup.addPopulation(output);
 					}
 				}
-			}
-			break;
-		default:
-			// no customizations needed
+				break;
+			default:
+				// no customizations needed
 		}
 		
 		if(context instanceof CDMContext) {

@@ -1,0 +1,83 @@
+{
+  "resourceType": "MeasureReport",
+  "contained": [
+    {
+      "resourceType": "List",
+      "id": "0f5a8bea-218c-46d0-b488-d4f2492658da",
+      "entry": [
+        {
+          "item": {
+            "reference": "Patient/eb068c3f-3954-50c6-0c67-2b82d29865f0",
+            "display": "Ms. Audra Krajcik"
+          }
+        },
+        {
+          "item": {
+            "reference": "Patient/5858467d-0a49-ad8c-3f76-dcf25067e175",
+            "display": "Mr. Abraham Beer"
+          }
+        }
+      ]
+    }
+  ],
+  "extension": [
+    {
+      "url": "http://ibm.com/fhir/cdm/StructureDefinition/measure-parameter-value",
+      "valueParameterDefinition": {
+        "extension": [
+          {
+            "url": "http://ibm.com/fhir/cdm/StructureDefinition/parameter-value",
+            "valuePeriod": {
+              "start": "2019-07-04T00:00:00.000+00:00",
+              "end": "2020-07-04T23:59:59.999+00:00"
+            }
+          }
+        ],
+        "name": "Measurement Period",
+        "use": "in",
+        "type": "Period"
+      }
+    },
+    {
+      "url": "http://ibm.com/fhir/cdm/StructureDefinition/measure-parameter-value",
+      "valueParameterDefinition": {
+        "extension": [
+          {
+            "url": "http://ibm.com/fhir/cdm/StructureDefinition/parameter-value",
+            "valueString": "ProductLine"
+          }
+        ],
+        "name": "Product Line",
+        "use": "in",
+        "type": "string"
+      }
+    }
+  ],
+  "status": "complete",
+  "type": "subject-list",
+  "measure": "Measure/measureId",
+  "period": {
+    "start": "2019-07-04T00:00:00.000+00:00",
+    "end": "2020-07-04T23:59:59.999+00:00"
+  },
+  "group": [
+    {
+      "population": [
+        {
+          "code": {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/measure-population",
+                "code": "initial-population"
+              }
+            ]
+          },
+          "count": 2,
+          "subjectResults": {
+            "reference": "#0f5a8bea-218c-46d0-b488-d4f2492658da"
+          }
+        }
+      ]
+    }
+  ]
+}

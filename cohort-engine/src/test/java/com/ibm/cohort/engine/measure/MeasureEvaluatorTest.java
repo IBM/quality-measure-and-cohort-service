@@ -13,6 +13,7 @@ import static com.ibm.cohort.engine.cdm.CDMConstants.MEASURE_PARAMETER_URL;
 import static com.ibm.cohort.engine.cdm.CDMConstants.MEASURE_PARAMETER_VALUE_URL;
 import static com.ibm.cohort.engine.cdm.CDMConstants.PARAMETER_DEFAULT_URL;
 import static com.ibm.cohort.engine.cdm.CDMConstants.PARAMETER_VALUE_URL;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -30,6 +31,8 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
+import org.hamcrest.Matchers;
 import org.hl7.fhir.r4.model.Address;
 import org.hl7.fhir.r4.model.Base64BinaryType;
 import org.hl7.fhir.r4.model.BooleanType;
@@ -46,6 +49,7 @@ import org.hl7.fhir.r4.model.HumanName;
 import org.hl7.fhir.r4.model.InstantType;
 import org.hl7.fhir.r4.model.IntegerType;
 import org.hl7.fhir.r4.model.Library;
+import org.hl7.fhir.r4.model.ListResource;
 import org.hl7.fhir.r4.model.Measure;
 import org.hl7.fhir.r4.model.MeasureReport;
 import org.hl7.fhir.r4.model.ParameterDefinition;
@@ -904,6 +908,34 @@ public class MeasureEvaluatorTest extends BaseMeasureTest {
 		report.getExtension().stream()
 				.filter(x -> x.getUrl().equals(CDMConstants.EVIDENCE_URL))
 				.forEach(x -> validateBooleanEvidence(x, true));
+	}
+
+	@Test
+	public void measure_patient_list_report_generated() throws Exception {
+		CapabilityStatement metadata = getCapabilityStatement();
+		mockFhirResourceRetrieval("/metadata", metadata);
+
+		Patient patient1 = getPatient("1", AdministrativeGender.MALE, "1970-10-10");
+		mockFhirResourceRetrieval(patient1);
+		Patient patient2 = getPatient("2", AdministrativeGender.FEMALE, "1970-10-10");
+		mockFhirResourceRetrieval(patient2);
+
+		List<String> patientIds = new ArrayList<>();
+		patientIds.add(patient1.getId());
+		patientIds.add(patient2.getId());
+
+		Library library = mockLibraryRetrieval("TestDummyPopulations", DEFAULT_VERSION, "cql/fhir-measure/test-dummy-populations.cql",
+		                                       "text/cql", "cql/fhir-measure/test-dummy-populations.xml", "application/elm+xml");
+
+		Measure measure = getCohortMeasure("CohortMeasureName", library, INITIAL_POPULATION);
+
+		MeasureReport report = evaluator.evaluatePatientListMeasure(patientIds, measure, null, null);
+
+		assertNotNull(report);
+		List<ListResource.ListEntryComponent> patientList = ((ListResource) report.getContained().get(0)).getEntry();
+		List<String> actualPatientIds = patientList.stream().map(a -> StringUtils.removeStart(a.getItem().getReference(), "Patient/")).collect(Collectors.toList());
+
+		assertThat(actualPatientIds, Matchers.containsInAnyOrder(patient1.getId(), patient2.getId()));
 	}
 
 	private void validateBooleanEvidence(Extension evidenceExtension, Boolean expectedValue) {

@@ -25,10 +25,15 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import net.javacrumbs.jsonunit.JsonAssert;
+import net.javacrumbs.jsonunit.core.Option;
 
 import org.apache.http.HttpStatus;
 import org.custommonkey.xmlunit.Diff;
@@ -53,6 +58,7 @@ import com.ibm.cohort.engine.api.service.CohortEngineRestHandler;
 import com.ibm.cohort.engine.api.service.ServiceBuildConstants;
 import com.ibm.cohort.engine.api.service.TestHelper;
 import com.ibm.cohort.engine.api.service.model.MeasureEvaluation;
+import com.ibm.cohort.engine.api.service.model.PatientListMeasureEvaluation;
 import com.ibm.cohort.engine.measure.MeasureContext;
 import com.ibm.cohort.engine.measure.evidence.MeasureEvidenceOptions;
 import com.ibm.cohort.engine.parameter.DateParameter;
@@ -73,8 +79,6 @@ import com.jayway.restassured.specification.RequestSpecification;
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.parser.IParser;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
-import net.javacrumbs.jsonunit.JsonAssert;
-import net.javacrumbs.jsonunit.core.Option;
 
 /*
  * PLEASE READ THIS FIRST
@@ -99,6 +103,7 @@ import net.javacrumbs.jsonunit.core.Option;
 @Category(BVT.class) 			// all classes must be tagged as BVT, otherwise will not be picked up by automation runs
 public class DefaultVT extends ServiceVTBase {
 	private static final String VALID_PATIENT_ID = "eb068c3f-3954-50c6-0c67-2b82d29865f0";
+	private static final String ANOTHER_VALID_PATIENT_ID = "5858467d-0a49-ad8c-3f76-dcf25067e175";
 
 	private static final Logger logger = LoggerFactory.getLogger(DefaultVT.class.getName());
 
@@ -207,7 +212,7 @@ public class DefaultVT extends ServiceVTBase {
 		String expected = getJsonFromFile(ServiceAPIGlobalSpec.EXP_FOLDER_TYPE,"measure_evaluation_exp.json");
 		String actual = vr.extract().asString();
 		
-		assertMeasureReportEquals(parser, expected, actual);
+		assertMeasureReportEquals(parser, expected, actual, false);
 	}
 	
 	@Category(DVT.class) // to tag a specific test to be part of DVT (deployment verification test)
@@ -264,10 +269,67 @@ public class DefaultVT extends ServiceVTBase {
 		String expected = getJsonFromFile(ServiceAPIGlobalSpec.EXP_FOLDER_TYPE,"measure_evaluation_exp.json");
 		String actual = vr.extract().asString();
 		
-		assertMeasureReportEquals(parser, expected, actual);
+		assertMeasureReportEquals(parser, expected, actual, false);
 	}
 
-	private void assertMeasureReportEquals(IParser parser, String expected, String actual) {
+	@Category(DVT.class) // to tag a specific test to be part of DVT (deployment verification test)
+	@Test
+	/**
+	 * Test a successful measure evaluation using Resource.id as the lookup key
+	 */
+	public void testPatientListMeasureEvaluation() throws Exception {
+
+		// You want -Denabled.dark.features=all in your Liberty jvm.options
+		Assume.assumeTrue(isServiceDarkFeatureEnabled(CohortEngineRestConstants.DARK_LAUNCHED_PATIENT_LIST_MEASURE_EVALUATION));
+
+		final String RESOURCE = getUrlBase() + CohortServiceAPISpec.POST_PATIENT_LIST_EVALUATION_PATH;
+
+		FhirContext fhirContext = FhirContext.forR4();
+		IParser parser = fhirContext.newJsonParser().setPrettyPrint(true);
+
+		Library library = TestHelper.getTemplateLibrary();
+
+		Measure measure = TestHelper.getTemplateMeasure(library);
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		TestHelper.createMeasureArtifact(baos, parser, measure, library);
+
+		Map<String,Parameter> parameterOverrides = new HashMap<>();
+		parameterOverrides.put("Measurement Period", new IntervalParameter(new DateParameter("2019-07-04")
+				, true
+				, new DateParameter("2020-07-04")
+				, true));;
+
+		PatientListMeasureEvaluation requestData = new PatientListMeasureEvaluation();
+		requestData.setDataServerConfig(dataServerConfig);
+		requestData.setTerminologyServerConfig(termServerConfig);
+
+		// These patients are assumed to exist in the target FHIR server
+		List<String> patientIds = new ArrayList<>();
+		patientIds.add(VALID_PATIENT_ID);
+		patientIds.add(ANOTHER_VALID_PATIENT_ID);
+		requestData.setPatientIds(patientIds);
+		requestData.setMeasureContext(new MeasureContext(measure.getId(), parameterOverrides));
+		requestData.setEvidenceOptions(new MeasureEvidenceOptions(false, MeasureEvidenceOptions.DefineReturnOptions.NONE));
+
+		ObjectMapper om = new ObjectMapper();
+		System.out.println( om.writeValueAsString(requestData) );
+
+		RequestSpecification request = buildBaseRequest(new Headers())
+				.queryParam(CohortEngineRestHandler.VERSION, ServiceBuildConstants.DATE)
+				.multiPart(CohortEngineRestHandler.REQUEST_DATA_PART, requestData, "application/json")
+				.multiPart(CohortEngineRestHandler.MEASURE_PART, "test_measure_v1_0_0.zip", new ByteArrayInputStream(baos.toByteArray()));
+
+		ValidatableResponse response = request.post(RESOURCE,getServiceVersion()).then();
+		ValidatableResponse vr = runSuccessValidation(response, ContentType.JSON, HttpStatus.SC_OK);
+
+		String expected = getJsonFromFile(ServiceAPIGlobalSpec.EXP_FOLDER_TYPE, "patient_list_measure_evaluation_exp.json");
+		String actual = vr.extract().asString();
+
+		assertMeasureReportEquals(parser, expected, actual, true);
+	}
+
+	private void assertMeasureReportEquals(IParser parser, String expected, String actual, boolean isPatientListMeasure) {
 		MeasureReport expectedReport = parser.parseResource(MeasureReport.class, expected);
 		MeasureReport actualReport = parser.parseResource(MeasureReport.class, actual);
 		
@@ -284,6 +346,21 @@ public class DefaultVT extends ServiceVTBase {
 		assertEquals( sdf.format(expectedReport.getPeriod().getEnd()), sdf.format(actualReport.getPeriod().getEnd()));
 		expectedReport.setPeriod(null);
 		actualReport.setPeriod(null);
+
+		// clear reference id, since those will vary by run
+		if (isPatientListMeasure) {
+			expectedReport.getContained().forEach(contained -> contained.setId(""));
+			actualReport.getContained().forEach(contained -> contained.setId(""));
+
+			expectedReport.getGroup().stream()
+					.flatMap(group -> group.getPopulation().stream())
+					.map(MeasureReport.MeasureReportGroupPopulationComponent::getSubjectResults)
+					.forEach(result -> result.setReference(""));
+			actualReport.getGroup().stream()
+					.flatMap(group -> group.getPopulation().stream())
+					.map(MeasureReport.MeasureReportGroupPopulationComponent::getSubjectResults)
+					.forEach(result -> result.setReference(""));
+		}
 		
 		// The remainder should match naturally
 		assertJsonEquals(parser.encodeResourceToString(expectedReport),parser.encodeResourceToString(actualReport));

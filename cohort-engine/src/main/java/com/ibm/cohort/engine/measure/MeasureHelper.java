@@ -48,4 +48,20 @@ public class MeasureHelper {
 
 		return result;
 	}
+
+	public static Measure loadMeasure(MeasureContext context, MeasureResolutionProvider<Measure> provider) {
+		Measure result = null;
+
+		if (context.getMeasureId() != null) {
+			result = loadMeasure(context.getMeasureId(), provider);
+		} else if (context.getIdentifier() != null) {
+			result = loadMeasure(context.getIdentifier(), context.getVersion(), provider);
+		}
+
+		if (result == null) {
+			throw new IllegalArgumentException(String.format("Failed to resolve Measure: %s", context));
+		}
+
+		return result;
+	}
 }

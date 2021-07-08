@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ibm.cohort.engine.api.service.model.MeasureEvaluation;
+import com.ibm.cohort.engine.api.service.model.PatientListMeasureEvaluation;
 import com.ibm.cohort.engine.api.service.model.MeasureParameterInfo;
 import com.ibm.cohort.engine.api.service.model.MeasureParameterInfoList;
 import com.ibm.cohort.engine.api.service.model.ServiceErrorList;
@@ -124,7 +125,7 @@ public class CohortEngineRestHandler {
 	public static final String EXAMPLE_REQUEST_DATA_JSON = "<p>A configuration file containing the information needed to process a measure evaluation request. Two possible FHIR server endoints can be configured <code>dataServerConfig</code> and <code>terminologyServerConfig</code>. Only the <code>dataServerConfig</code> is required. If <code>terminologyServerConfig</code> is not provided, the connection details are assumed to be the same as the <code>dataServerConfig</code> connection.</p>" +
 			"<p>The <code>measureContext.measureId</code> field can be a FHIR resource ID or canonical URL. Alternatively, <code>measureContext.identifier</code> and <code>measureContext.version</code> can be used to lookup the measure based on a business identifier found in the resource definition. Only one of measureId or identifier + version should be specified. Canonical URL is the recommended lookup mechanism.</p>" +
 			"<p>The parameter types and formats are described in detail in the <a href=\"http://alvearie.io/quality-measure-and-cohort-service/#/user-guide/parameter-formats?id=parameter-formats\">user guide</a>.</p>" +
-			"<p>The <code>evidenceOptions</code> control the amount of data written the FHIR MeasureReport that is returned as a result of the evaluation. The <code>expandValueSets</code> flag is used to control whether or not the terminology provider is used to expand ValueSet references or if the FHIR :in modifier is used during search requests. The FHIR :in modifier is supported in IBM FHIR 4.7.0 and above. The default behavior is to expand value sets using the terminology provider in order to cover the widest range of FHIR server functionality. A value of false can be used to improve search performance if terminology resources are available on the data server and it supports the :in modifier. The <code>searchPageSize</code> controls how many data records are retrieved per request during FHIR search API execution. The default value for this setting is small in most servers and performance can be boosted by larger values. The default is 1000 which is the maximum allowed page size in IBM FHIR.</p>" +
+			"<p>The <code>evidenceOptions</code> controls the granularity of evidence data to be written to the FHIR MeasureReport. The <code>expandValueSets</code> flag is used to control whether or not the terminology provider is used to expand ValueSet references or if the FHIR :in modifier is used during search requests. The FHIR :in modifier is supported in IBM FHIR 4.7.0 and above. The default behavior is to expand value sets using the terminology provider in order to cover the widest range of FHIR server functionality. A value of false can be used to improve search performance if terminology resources are available on the data server and it supports the :in modifier. The <code>searchPageSize</code> controls how many data records are retrieved per request during FHIR search API execution. The default value for this setting is small in most servers and performance can be boosted by larger values. The default is 1000 which is the maximum allowed page size in IBM FHIR.</p>" +
 			"<p>Example Contents: \n <pre>{\n" +
 			"    \"dataServerConfig\": {\n" + 
 			"        \"@class\": \"com.ibm.cohort.fhir.client.config.IBMFhirServerConfig\",\n" + 
@@ -163,7 +164,53 @@ public class CohortEngineRestHandler {
 			"    \"expandValueSets\": true\n" +
 			"    \"searchPageSize\": 1000\n" +
 			"}</pre></p>";
-	
+
+	public static final String EXAMPLE_PATIENT_LIST_MEASURE_REQUEST_DATA_JSON = "<p>A configuration file containing the information needed to process a measure evaluation request. Two possible FHIR server endoints can be configured <code>dataServerConfig</code> and <code>terminologyServerConfig</code>. Only the <code>dataServerConfig</code> is required. If <code>terminologyServerConfig</code> is not provided, the connection details are assumed to be the same as the <code>dataServerConfig</code> connection.</p>" +
+			"<p>The <code>measureContext.measureId</code> field can be a FHIR resource ID or canonical URL. Alternatively, <code>measureContext.identifier</code> and <code>measureContext.version</code> can be used to lookup the measure based on a business identifier found in the resource definition. Only one of measureId or identifier + version should be specified. Canonical URL is the recommended lookup mechanism.</p>" +
+			"<p>The parameter types and formats are described in detail in the <a href=\"http://alvearie.io/quality-measure-and-cohort-service/#/user-guide/parameter-formats?id=parameter-formats\">user guide</a>.</p>" +
+			"<p>The <code>evidenceOptions</code> controls the granularity of evidence data to be written to the FHIR MeasureReport. The <code>expandValueSets</code> flag is used to control whether or not the terminology provider is used to expand ValueSet references or if the FHIR :in modifier is used during search requests. The FHIR :in modifier is supported in IBM FHIR 4.7.0 and above. The default behavior is to expand value sets using the terminology provider in order to cover the widest range of FHIR server functionality. A value of false can be used to improve search performance if terminology resources are available on the data server and it supports the :in modifier. The <code>searchPageSize</code> controls how many data records are retrieved per request during FHIR search API execution. The default value for this setting is small in most servers and performance can be boosted by larger values. The default is 1000 which is the maximum allowed page size in IBM FHIR.</p>" +
+			"<p>Example Contents: \n <pre>{\n" +
+			"    \"dataServerConfig\": {\n" +
+			"        \"@class\": \"com.ibm.cohort.fhir.client.config.IBMFhirServerConfig\",\n" +
+			"        \"endpoint\": \"ENDPOINT\",\n" +
+			"        \"user\": \"USER\",\n" +
+			"        \"password\": \"PASSWORD\",\n" +
+			"        \"logInfo\": [\n" +
+			"            \"REQUEST_SUMMARY\",\n" +
+			"            \"RESPONSE_SUMMARY\"\n" +
+			"        ],\n" +
+			"        \"tenantId\": \"default\"\n" +
+			"    },\n" +
+			"    \"patientIds\": [\n" +
+			"        \"PATIENT_ID_1\",\n" +
+			"        \"PATIENT_ID_2\"\n" +
+			"    ],\n" +
+			"    \"measureContext\": {\n" +
+			"        \"measureId\": \"MEASUREID\",\n" +
+			"        \"parameters\": {\n" +
+			"            \"Measurement Period\": {\n" +
+			"                \"type\": \"interval\",\n" +
+			"                \"start\": {\n" +
+			"                    \"type\": \"date\",\n" +
+			"                    \"value\": \"2019-07-04\"\n" +
+			"                },\n" +
+			"                \"startInclusive\": true,\n" +
+			"                \"end\": {\n" +
+			"                    \"type\": \"date\",\n" +
+			"                    \"value\": \"2020-07-04\"\n" +
+			"                },\n" +
+			"                \"endInclusive\": true\n" +
+			"            }\n" +
+			"        }\n" +
+			"    },\n" +
+			"    \"evidenceOptions\": {\n" +
+			"        \"includeEvaluatedResources\": false,\n" +
+			"        \"defineReturnOption\": \"ALL\"\n" +
+			"    },\n" +
+			"    \"expandValueSets\": true\n" +
+			"    \"searchPageSize\": 1000\n" +
+			"}</pre></p>";
+
 	public static final String EXAMPLE_MEASURE_ZIP = "A file in ZIP format that contains the FHIR resources to use in the evaluation. This should contain all the FHIR Measure and Library resources needed in a particular directory structure as follows:" +
 			"<pre>fhirResources/MeasureName-MeasureVersion.json\n" +
 			"fhirResources/libraries/LibraryName1-LibraryVersion.json\n" + 
@@ -185,6 +232,7 @@ public class CohortEngineRestHandler {
 	
 	public enum MethodNames {
 		EVALUATE_MEASURE("evaluateMeasure"),
+		EVALUATE_PATIENT_LIST_MEASURE("evaluatePatientListMeasure"),
 		GET_MEASURE_PARAMETERS("getMeasureParameters"),
 		GET_MEASURE_PARAMETERS_BY_ID("getMeasureParametersById"),
 		CREATE_VALUE_SET("createValueSet")
@@ -301,7 +349,7 @@ public class CohortEngineRestHandler {
 				}
 				
 				Integer searchPageSize = evaluationRequest.getSearchPageSize();
-				if( searchPageSize != null ) {
+				if( searchPageSize == null ) {
 					searchPageSize = R4DataProviderFactory.DEFAULT_PAGE_SIZE;
 				}
 				
@@ -330,7 +378,124 @@ public class CohortEngineRestHandler {
 
 		return response;
 	}
-	
+
+	@POST
+	@Path("/evaluation-patient-list")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces({ MediaType.APPLICATION_JSON })
+	@ApiOperation(value = "Evaluates a measure bundle for a list of patient"
+			, notes = EVALUATION_API_NOTES, response = String.class
+			, tags = {"Measure Evaluation"}
+			, extensions = {
+			@Extension(properties = {
+					@ExtensionProperty(
+							name = DarkFeatureSwaggerFilter.DARK_FEATURE_NAME
+							, value = CohortEngineRestConstants.DARK_LAUNCHED_PATIENT_LIST_MEASURE_EVALUATION)
+			})
+	}
+	)
+	@ApiImplicitParams({
+			// This is necessary for the dark launch feature
+			@ApiImplicitParam(access = DarkFeatureSwaggerFilter.DARK_FEATURE_CONTROLLED, paramType = "header", dataType = "string"),
+			// These are necessary to create a proper view of the request body that is all wrapped up in the Liberty IMultipartBody parameter
+			@ApiImplicitParam(name=REQUEST_DATA_PART, value=EXAMPLE_PATIENT_LIST_MEASURE_REQUEST_DATA_JSON, dataTypeClass = PatientListMeasureEvaluation.class, required=true, paramType="form", type="file"),
+			@ApiImplicitParam(name=MEASURE_PART, value=EXAMPLE_MEASURE_ZIP, dataTypeClass = File.class, required=true, paramType="form", type="file" )
+	})
+	@ApiResponses(value = {
+			@ApiResponse(code = 200, message = "Successful Operation"),
+			@ApiResponse(code = 400, message = "Bad Request", response = ServiceErrorList.class),
+			@ApiResponse(code = 500, message = "Server Error", response = ServiceErrorList.class)
+	})
+	public Response evaluatePatientListMeasure(
+			@Context HttpServletRequest request,
+			@ApiParam(value = ServiceBaseConstants.MINOR_VERSION_DESCRIPTION, required = true, defaultValue = ServiceBuildConstants.DATE) @QueryParam(CohortEngineRestHandler.VERSION) String version,
+			@ApiParam(hidden = true, type="file", required=true) IMultipartBody multipartBody) {
+		final String methodName = MethodNames.EVALUATE_PATIENT_LIST_MEASURE.getName();
+
+		Response response = null;
+
+		// Error out if feature is not enabled
+		ServiceBaseUtility.isDarkFeatureEnabled(CohortEngineRestConstants.DARK_LAUNCHED_PATIENT_LIST_MEASURE_EVALUATION);
+
+		try {
+			// Perform api setup
+			Response errorResponse = ServiceBaseUtility.apiSetup(version, logger, methodName);
+			if(errorResponse != null) {
+				return errorResponse;
+			}
+
+			if( multipartBody == null ) {
+				throw new IllegalArgumentException("A multipart/form-data body is required");
+			}
+
+			IAttachment metadataAttachment = multipartBody.getAttachment(REQUEST_DATA_PART);
+			if( metadataAttachment == null ) {
+				throw new IllegalArgumentException(String.format("Missing '%s' MIME attachment", REQUEST_DATA_PART));
+			}
+
+			IAttachment measureAttachment = multipartBody.getAttachment(MEASURE_PART);
+			if( measureAttachment == null ) {
+				throw new IllegalArgumentException(String.format("Missing '%s' MIME attachment", MEASURE_PART));
+			}
+
+			// deserialize the PatientListMeasureEvaluation request
+			ObjectMapper om = new ObjectMapper();
+			PatientListMeasureEvaluation evaluationRequest = om.readValue(metadataAttachment.getDataHandler().getInputStream(), PatientListMeasureEvaluation.class);
+
+			//validate the contents of the evaluationRequest
+			validateBean(evaluationRequest);
+
+			FhirClientBuilder clientBuilder = FhirClientBuilderFactory.newInstance().newFhirClientBuilder();
+			IGenericClient dataClient = clientBuilder.createFhirClient(evaluationRequest.getDataServerConfig());
+			IGenericClient terminologyClient = dataClient;
+			if( evaluationRequest.getTerminologyServerConfig() != null ) {
+				terminologyClient = clientBuilder.createFhirClient(evaluationRequest.getTerminologyServerConfig());
+			}
+
+			IParser parser = dataClient.getFhirContext().newJsonParser();
+
+			String [] searchPaths = new String[] { "fhirResources", "fhirResources/libraries" };
+			ZipResourceResolutionProvider provider = new ZipResourceResolutionProvider(new ZipInputStream( measureAttachment.getDataHandler().getInputStream()), parser, searchPaths);;
+
+			TerminologyProvider terminologyProvider = new R4RestFhirTerminologyProvider(terminologyClient);
+			try (RetrieveCacheContext retrieveCacheContext = new DefaultRetrieveCacheContext()) {
+				Boolean expandValueSets = evaluationRequest.isExpandValueSets();
+				if( expandValueSets == null ) {
+					expandValueSets = R4DataProviderFactory.DEFAULT_IS_EXPAND_VALUE_SETS;
+				}
+
+				Integer searchPageSize = evaluationRequest.getSearchPageSize();
+				if( searchPageSize == null ) {
+					searchPageSize = R4DataProviderFactory.DEFAULT_PAGE_SIZE;
+				}
+
+				Map<String, DataProvider> dataProviders = R4DataProviderFactory.createDataProviderMap(dataClient, terminologyProvider, retrieveCacheContext, expandValueSets, searchPageSize);
+
+				MeasureEvaluator evaluator = new MeasureEvaluator(provider, provider, terminologyProvider, dataProviders);
+
+				MeasureReport report = evaluator.evaluatePatientListMeasure(evaluationRequest.getPatientIds(), evaluationRequest.getMeasureContext(), evaluationRequest.getEvidenceOptions());
+
+				// The default serializer gets into an infinite loop when trying to serialize MeasureReport, so we use the
+				// HAPI encoder instead.
+				ResponseBuilder responseBuilder = Response.status(Response.Status.OK).header("Content-Type", "application/json").entity(parser.encodeResourceToString(report));
+				response = responseBuilder.build();
+
+			}
+		} catch (Throwable e) {
+			//map any exceptions caught into the proper REST error response objects
+			response = new CohortServiceExceptionMapper().toResponse(e);
+		} finally {
+			// Perform api cleanup
+			Response errorResponse = ServiceBaseUtility.apiCleanup(logger, methodName);
+			if( errorResponse != null ) {
+				response = errorResponse;
+			}
+		}
+
+		return response;
+	}
+
+
 	@POST
 	@Path("/fhir/measure/identifier/{measure_identifier_value}/parameters")
 	@Produces(MediaType.APPLICATION_JSON)

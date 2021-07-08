@@ -6,6 +6,7 @@
 package com.ibm.cohort.engine.measure;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -155,7 +156,33 @@ public class MeasureEvaluator {
 		IMeasureEvaluationSeed seed = seeder.create(measure, periodStart, periodEnd, "ProductLine", parameters);
 
 		CDMMeasureEvaluation evaluation = new CDMMeasureEvaluation(seed.getDataProvider(), seed.getMeasurementPeriod());
-		return evaluation.evaluatePatientMeasure(measure, seed.getContext(), patientId, evidenceOptions, parameters);
+		return evaluation.evaluatePatientMeasure(measure, seed.getContext(), Collections.singletonList(patientId), evidenceOptions, parameters, MeasureReport.MeasureReportType.INDIVIDUAL);
 	}
 
+	public MeasureReport evaluatePatientListMeasure(
+			List<String> patientIds,
+			MeasureContext measureContext,
+			MeasureEvidenceOptions evidenceOptions) {
+		Measure measure = MeasureHelper.loadMeasure(measureContext, measureProvider);
+
+		return evaluatePatientListMeasure(patientIds, measure, measureContext.getParameters(), evidenceOptions);
+	}
+
+	public MeasureReport evaluatePatientListMeasure(
+			List<String> patientIds,
+			Measure measure,
+			Map<String, Parameter> parameters,
+			MeasureEvidenceOptions evidenceOptions) {
+		LibraryLoader libraryLoader = LibraryHelper.createLibraryLoader(libraryProvider);
+
+		MeasureEvaluationSeeder seeder = new MeasureEvaluationSeeder(terminologyProvider, dataProviders, libraryLoader, libraryProvider);
+		seeder.disableDebugLogging();
+
+		Pair<String, String> period = getMeasurementPeriodStrategy().getMeasurementPeriod(measure, parameters);
+
+		IMeasureEvaluationSeed seed = seeder.create(measure, period.getLeft(), period.getRight(), "ProductLine", parameters);
+
+		CDMMeasureEvaluation evaluation = new CDMMeasureEvaluation(seed.getDataProvider(), seed.getMeasurementPeriod());
+		return evaluation.evaluatePatientMeasure(measure, seed.getContext(), patientIds, evidenceOptions, parameters, MeasureReport.MeasureReportType.SUBJECTLIST);
+	}
 }
