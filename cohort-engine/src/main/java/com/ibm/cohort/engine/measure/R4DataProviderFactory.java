@@ -55,7 +55,7 @@ public class R4DataProviderFactory {
 			boolean isExpandValueSets,
 			Integer pageSize
 	) {
-		return createDataProviderMap(client, terminologyProvider, retrieveCacheContext, new R4FhirModelResolver(), isExpandValueSets, pageSize);
+		return createDataProviderMap(client, terminologyProvider, retrieveCacheContext, new R4FhirModelResolver(), new SearchParameterResolver(client.getFhirContext()), isExpandValueSets, pageSize);
 	}
 	
 	public static Map<String, DataProvider> createDataProviderMap(
@@ -63,11 +63,11 @@ public class R4DataProviderFactory {
 			TerminologyProvider terminologyProvider,
 			RetrieveCacheContext retrieveCacheContext,
 			R4FhirModelResolver modelResolver,
+			SearchParameterResolver searchParameterResolver,
 			boolean isExpandValueSets,
 			Integer pageSize
 	) {
-		SearchParameterResolver resolver = new SearchParameterResolver(client.getFhirContext());
-		R4RestFhirRetrieveProvider baseRetrieveProvider = new R4RestFhirRetrieveProvider(resolver, client);
+		R4RestFhirRetrieveProvider baseRetrieveProvider = new R4RestFhirRetrieveProvider(searchParameterResolver, client);
 		baseRetrieveProvider.setExpandValueSets(isExpandValueSets);
 		baseRetrieveProvider.setSearchPageSize(pageSize);
 		baseRetrieveProvider.setTerminologyProvider(terminologyProvider);

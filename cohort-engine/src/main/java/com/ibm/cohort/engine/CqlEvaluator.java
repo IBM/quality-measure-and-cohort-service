@@ -32,6 +32,7 @@ import com.ibm.cohort.engine.cdm.CDMConstants;
 import com.ibm.cohort.engine.cqfruler.CDMContext;
 import com.ibm.cohort.engine.parameter.Parameter;
 import com.ibm.cohort.engine.r4.cache.CachingR4FhirModelResolver;
+import com.ibm.cohort.engine.r4.cache.CachingSearchParameterResolver;
 import com.ibm.cohort.engine.retrieve.R4RestFhirRetrieveProvider;
 import com.ibm.cohort.engine.terminology.R4RestFhirTerminologyProvider;
 import com.ibm.cohort.fhir.client.config.FhirClientBuilderFactory;
@@ -317,7 +318,7 @@ public class CqlEvaluator {
 	 * @return Map of supported model URL to data provider
 	 */
 	protected Map<String, DataProvider> getDataProviders(TerminologyProvider terminologyProvider) {
-		SearchParameterResolver resolver = new SearchParameterResolver(this.dataServerClient.getFhirContext());
+		SearchParameterResolver resolver = new CachingSearchParameterResolver(this.dataServerClient.getFhirContext());
 		R4RestFhirRetrieveProvider retrieveProvider = new R4RestFhirRetrieveProvider(resolver, this.dataServerClient);
 		retrieveProvider.setTerminologyProvider(terminologyProvider);
 		//Ideally, we would determine this using the FHIR CapabilityStatement, but there isn't a strongly

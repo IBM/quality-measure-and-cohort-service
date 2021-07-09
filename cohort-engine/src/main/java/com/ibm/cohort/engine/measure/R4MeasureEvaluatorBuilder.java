@@ -13,10 +13,14 @@ import org.hl7.fhir.r4.model.Measure;
 import org.opencds.cqf.common.providers.LibraryResolutionProvider;
 import org.opencds.cqf.cql.engine.data.DataProvider;
 import org.opencds.cqf.cql.engine.fhir.model.R4FhirModelResolver;
+import org.opencds.cqf.cql.engine.fhir.searchparam.SearchParameterResolver;
 import org.opencds.cqf.cql.engine.terminology.TerminologyProvider;
 
 import com.ibm.cohort.engine.measure.cache.RetrieveCacheContext;
 import com.ibm.cohort.engine.terminology.R4RestFhirTerminologyProvider;
+
+import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.context.FhirVersionEnum;
 
 /**
  * A builder intended to allow for easy creation of {@link MeasureEvaluator} instances tailored for use
@@ -29,6 +33,7 @@ public class R4MeasureEvaluatorBuilder {
 	private boolean isExpandValueSets = R4DataProviderFactory.DEFAULT_IS_EXPAND_VALUE_SETS;
 	private Integer pageSize = R4DataProviderFactory.DEFAULT_PAGE_SIZE;
 	private R4FhirModelResolver modelResolver = new R4FhirModelResolver();
+	private SearchParameterResolver searchParameterResolver = new SearchParameterResolver(FhirContext.forCached(FhirVersionEnum.R4));
 
 	public R4MeasureEvaluatorBuilder withClientContext(FHIRClientContext value) {
 		this.clientContext = value;
@@ -54,6 +59,11 @@ public class R4MeasureEvaluatorBuilder {
 		this.modelResolver = modelResolver;
 		return this;
 	}
+	
+	public R4MeasureEvaluatorBuilder withSearchParameterResolver(SearchParameterResolver searchParameterResolver) {
+		this.searchParameterResolver = searchParameterResolver;
+		return this;
+	}
 
 	public MeasureEvaluator build() {
 		if (clientContext == null) {
@@ -66,6 +76,7 @@ public class R4MeasureEvaluatorBuilder {
 				terminologyProvider,
 				cacheContext,
 				modelResolver,
+				searchParameterResolver,
 				isExpandValueSets,
 				pageSize
 		);
