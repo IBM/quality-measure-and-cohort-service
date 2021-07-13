@@ -14,6 +14,8 @@ import org.cqframework.cql.elm.execution.Library;
 import org.cqframework.cql.elm.execution.VersionedIdentifier;
 import org.opencds.cqf.cql.engine.execution.CqlLibraryReader;
 import org.opencds.cqf.cql.engine.execution.LibraryLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.ibm.cohort.engine.translation.CqlTranslationProvider;
 
@@ -23,6 +25,8 @@ import com.ibm.cohort.engine.translation.CqlTranslationProvider;
  */
 public class TranslatingLibraryLoader implements LibraryLoader {
 
+	private static final Logger logger = LoggerFactory.getLogger(TranslatingLibraryLoader.class);
+	
 	public static final boolean DEFAULT_FORCE_TRANSLATION = false;
 
 	private MultiFormatLibrarySourceProvider provider;
@@ -75,7 +79,9 @@ public class TranslatingLibraryLoader implements LibraryLoader {
 				if (library == null) {
 					InputStream is = provider.getLibrarySource(translatorVersionedId, LibraryFormat.CQL);
 					if (is != null) {
+						logger.debug("Translating \"{}\" version '{}'", translatorVersionedId.getId(), translatorVersionedId.getVersion());
 						library = translator.translate(is);
+						assert library.getIdentifier().getId() != null;
 					} else {
 						throw new IllegalArgumentException(String.format("No library source found for \"%s\" version '%s'",
 								translatorVersionedId.getId(), translatorVersionedId.getVersion()));

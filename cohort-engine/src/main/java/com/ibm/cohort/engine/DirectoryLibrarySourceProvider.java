@@ -22,6 +22,8 @@ import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
 import org.hl7.elm.r1.VersionedIdentifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Directory-based implementation of MultiFormatLibrarySourceProvider. Filenames can contain
@@ -29,6 +31,8 @@ import org.hl7.elm.r1.VersionedIdentifier;
  * When no strategy is provided {@link DefaultFilenameToVersionedIdentifierStrategy} is used.
  */
 public class DirectoryLibrarySourceProvider extends MultiFormatLibrarySourceProvider {
+	
+	private static final Logger logger = LoggerFactory.getLogger(DirectoryLibrarySourceProvider.class);
 	
 	public DirectoryLibrarySourceProvider(Path folderPath) throws IOException {
 		this( folderPath, new DefaultFilenameToVersionedIdentifierStrategy() );
@@ -53,6 +57,9 @@ public class DirectoryLibrarySourceProvider extends MultiFormatLibrarySourceProv
 							
 							String text = FileUtils.readFileToString(entry.toFile(), StandardCharsets.UTF_8);
 							formats.put(sourceFormat, new ByteArrayInputStream( text.getBytes() ) );
+							logger.debug("Found source Library '{}'", entry.toString() );
+						} else { 
+							logger.warn("Path '{}' contains an unrecognized/unsupported file extension", entry.toString() );
 						}
 					} 
 				}

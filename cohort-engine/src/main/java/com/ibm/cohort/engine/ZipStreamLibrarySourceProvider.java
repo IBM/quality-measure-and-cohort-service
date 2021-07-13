@@ -18,6 +18,8 @@ import java.util.zip.ZipInputStream;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hl7.elm.r1.VersionedIdentifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * ZIP archive-based implementation of MultiFormatLibrarySourceProvider.
@@ -27,6 +29,8 @@ import org.hl7.elm.r1.VersionedIdentifier;
  */
 public class ZipStreamLibrarySourceProvider extends MultiFormatLibrarySourceProvider {
 
+	private static final Logger logger = LoggerFactory.getLogger(ZipStreamLibrarySourceProvider.class);
+	
 	public ZipStreamLibrarySourceProvider(ZipInputStream zipInputStream, String... searchPaths) throws IOException {
 		this(zipInputStream, new DefaultFilenameToVersionedIdentifierStrategy(), searchPaths);
 	}
@@ -59,6 +63,9 @@ public class ZipStreamLibrarySourceProvider extends MultiFormatLibrarySourceProv
 						IOUtils.copy(zipInputStream, baos);
 						Map<LibraryFormat, InputStream> formats = sources.computeIfAbsent(id, key -> new HashMap<>());
 						formats.put(format, new ByteArrayInputStream(baos.toByteArray()));
+						logger.debug("Found source Library '{}'", ze.getName() );
+					} else { 
+						logger.warn("Path '{}' contains an unrecognized/unsupported file extension", ze.getName() );
 					}
 				}
 			}

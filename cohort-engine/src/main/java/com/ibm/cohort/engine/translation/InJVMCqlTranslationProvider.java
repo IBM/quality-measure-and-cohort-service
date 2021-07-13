@@ -12,7 +12,6 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import javax.xml.bind.JAXB;
 
@@ -27,6 +26,7 @@ import org.cqframework.cql.cql2elm.ModelInfoLoader;
 import org.cqframework.cql.cql2elm.ModelInfoProvider;
 import org.cqframework.cql.cql2elm.ModelManager;
 import org.cqframework.cql.elm.execution.Library;
+import org.cqframework.cql.elm.tracking.TrackBack;
 import org.fhir.ucum.UcumService;
 import org.hl7.elm_modelinfo.r1.ModelInfo;
 import org.opencds.cqf.cql.engine.execution.CqlLibraryReader;
@@ -83,12 +83,16 @@ public class InJVMCqlTranslationProvider extends BaseCqlTranslationProvider {
 
 		LOG.debug("Translated CQL contains {} errors", translator.getErrors().size());
 		if (!translator.getErrors().isEmpty()) {
-			throw new Exception("CQL translation contained errors: " + translator.getErrors().stream().map(Throwable::toString).collect(Collectors.joining("\n")));
+			throw new Exception("CQL translation contained errors: " + formatMsg(translator.getErrors()));
 		}
 
 		LOG.debug("Translated CQL contains {} exceptions", translator.getExceptions().size());
 		if (!translator.getExceptions().isEmpty()) {
-			throw new Exception("CQL translation contained exceptions: " + translator.getExceptions().stream().map(Throwable::toString).collect(Collectors.joining("\n")));
+			throw new Exception("CQL translation contained exceptions: " + formatMsg(translator.getExceptions()));
+		}
+		
+		if (!translator.getWarnings().isEmpty()) {
+			LOG.warn("Translated CQL contains warnings: " + formatMsg(translator.getWarnings()));
 		}
 
 		switch (targetFormat) {
@@ -132,4 +136,23 @@ public class InJVMCqlTranslationProvider extends BaseCqlTranslationProvider {
 	public ModelInfo convertToModelInfo(File modelInfoFile) {
 		return JAXB.unmarshal(modelInfoFile, ModelInfo.class);
 	}
+	
+    /**
+     * Some of this was adapted from the CQL Translation Server TranslationFailureException.
+     * 
+     * @param translationErrs List of translation errors.
+     * @return String representation of the list of translation errors.
+     */
+    private static String formatMsg(List<CqlTranslatorException> translationErrs) {
+        StringBuilder msg = new StringBuilder();
+        for (CqlTranslatorException error : translationErrs) {
+          TrackBack tb = error.getLocator();
+          String lines = tb == null ? "[n/a]" : String.format("[%s:%s (start:%d:%d, end:%d:%d)]",
+                  tb.getLibrary().getId(), tb.getLibrary().getVersion(),
+                  tb.getStartLine(), tb.getStartChar(), tb.getEndLine(),
+                  tb.getEndChar());
+          msg.append(String.format("%s %s%n", lines, error.getMessage()));
+        }
+        return msg.toString();
+    }
 }
